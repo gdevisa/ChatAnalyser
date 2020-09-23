@@ -10,17 +10,20 @@ import emoji
 import base64
 import datetime
 import io
-import plotly.graph_objs as go
 import regex
 
 from plotly.subplots import make_subplots
 import plotly.express as px
 import plotly.graph_objects as go
+import plotly.graph_objs as go
+import plotly.figure_factory as ff
 import pandas as pd
+import numpy as np
 import json
 
 import langid
-import dostoevsky
+from dostoevsky.tokenization import RegexTokenizer
+from dostoevsky.models import FastTextSocialNetworkModel
 import spacy
 
 external_stylesheets = [dbc.themes.LITERA]
@@ -35,6 +38,18 @@ colors = {
 
 app.layout = html.Div([
     dbc.Container([
+        dbc.Card(
+            dbc.ListGroup(
+                [
+                    dbc.ListGroupItem("Demo Report"),
+                    dbc.ListGroupItem("Telegram Instructions"),
+
+                ],
+                flush=True,
+            ),
+            style={"width": "100%",
+                   "textAlign": "center"},
+        ),
         dcc.Upload(
                 id='upload-file',
                 children=html.Div([
@@ -64,15 +79,30 @@ def update_output(contents, filename):
     if contents is not None:
         df = parse_data(contents, filename)
 
+        labels = df['from'].unique()
+        values = df.groupby(by='from', axis=0).size()
+
+        # Sentiment Analysis
+        sentiments_1, sentiments_2 = sentiment_analysis(df)
+        hist_data = [np.array(sentiments_1), np.array(sentiments_2)]
+
+        group_labels = [labels[0], labels[1]]
+
+        fig_sent = ff.create_distplot(hist_data, group_labels,
+                         bin_size=.2, show_rug=False)
+        fig_sent.update_layout(title={
+                'text': 'Sentiment Analysis',
+                'y': 0.9,
+                'x': 0.5,
+                'xanchor': 'center',
+                'yanchor': 'top'})
+
         # Total messages and emojis pie chart
         total_emojis_list = list([a for b in df.emoji for a in b])
         emoji_dict = dict(Counter(total_emojis_list))
         emoji_dict = sorted(emoji_dict.items(), key=lambda x: x[1], reverse=True)
         emoji_df = pd.DataFrame(emoji_dict, columns=['emoji', 'count'])
         emoji_df = emoji_df[:8]
-
-        labels = df['from'].unique()
-        values = df.groupby(by='from', axis=0).size()
 
         words_total = df.groupby(by='from', axis=0).sum()
         words_per_message = words_total['Words'] / values
@@ -153,7 +183,7 @@ def update_output(contents, filename):
                 ),
                 html.H5('Total Words', className="card-title"),
                 html.P(
-                    f"{words_total.sum().values[0]:,}",
+                    f"{int(words_total.sum().values[0]):,}",
                     className="card-text",
                 ),
                 html.H5('Time Period', className="card-title"),
@@ -207,7 +237,7 @@ def update_output(contents, filename):
                 dbc.Row(
                     [
                         dbc.Col(dbc.Card(
-                             [dbc.Row([dbc.Col(dcc.Graph(figure = fig_pie))]),
+                             [dbc.Row([dbc.Col(dcc.Graph(figure=fig_sent)), dbc.Col(dcc.Graph(figure = fig_pie))]),
                               dbc.Row([dbc.Col(dcc.Graph(figure=fig_days)), dbc.Col(dcc.Graph(figure=fig_hour))]),
                               dbc.Row([dbc.Col(dcc.Graph(figure = fig_line))])
                              ]
@@ -270,6 +300,44 @@ def concat(text):
 def sentiment_analysis(data):
     langid.set_languages(['en', 'ru'])
     lang = langid.classify(data['text'][0])[0]
+    if lang == 'ru':
+        labels = data['from'].unique()
+        msg_df = data.loc[data.text != '']
+        messages_1 = list(msg_df.text[msg_df['from'] == labels[0]])
+        messages_2 = list(msg_df.text[msg_df['from'] == labels[1]])
+
+        tokenizer = RegexTokenizer()
+
+        model = FastTextSocialNetworkModel(tokenizer=tokenizer)
+
+        results_1 = model.predict(messages_1, k=2)
+        sentiments_1 = []
+
+        for sentiment in results_1:
+            # привет -> {'speech': 1.0000100135803223, 'skip': 0.0020607432816177607}
+            # люблю тебя!! -> {'positive': 0.9886782765388489, 'skip': 0.005394937004894018}
+            # малолетние дебилы -> {'negative': 0.9525841474533081, 'neutral': 0.13661839067935944}]
+
+            tone = 0
+            if 'positive' in sentiment:
+                tone += sentiment['positive']
+            if 'negative' in sentiment:
+                tone -= sentiment['negative']
+            sentiments_1.append(tone)
+
+        results_2 = model.predict(messages_2, k=2)
+        sentiments_2 = []
+
+        for sentiment in results_2:
+
+            tone = 0
+            if 'positive' in sentiment:
+                tone += sentiment['positive']
+            if 'negative' in sentiment:
+                tone -= sentiment['negative']
+            sentiments_2.append(tone)
+
+        return sentiments_1, sentiments_2
 
 if __name__ == '__main__':
     app.run_server(debug=True)
