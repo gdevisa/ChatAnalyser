@@ -19,6 +19,10 @@ import plotly.graph_objects as go
 import pandas as pd
 import json
 
+import langid
+import dostoevsky
+import spacy
+
 external_stylesheets = [dbc.themes.LITERA]
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -70,6 +74,9 @@ def update_output(contents, filename):
         labels = df['from'].unique()
         values = df.groupby(by='from', axis=0).size()
 
+        words_total = df.groupby(by='from', axis=0).sum()
+        words_per_message = words_total['Words'] / values
+
         fig_pie = px.pie(emoji_df, names='emoji', values='count')
         fig_pie.update_traces(textposition='inside', textinfo='percent+label', showlegend=False)
         fig_pie.update_layout(
@@ -94,21 +101,44 @@ def update_output(contents, filename):
 
         # Activity by day area plot
         df['DayOfWeek'] = df['date'].dt.dayofweek
-        date_df = df.groupby('DayOfWeek').size().rename_axis('DayOfWeek').to_frame('MessageCount')
+        date_df = df.groupby('DayOfWeek').size().rename_axis('DayOfWeek').to_frame('Messages')
         date_df.reset_index(inplace=True)
         date_df['DayOfWeek'] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+        fig_days = px.line_polar(date_df, r='Messages', theta='DayOfWeek', line_close=True)
+        fig_days.update_traces(fill='toself')
+        fig_days.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    visible=True,
+                    range=[0, 4000]
+                )),
+            showlegend=False,
+            title={
+                'text': "Activity by Day",
+                'y': 0.96,
+                'x': 0.5,
+                'xanchor': 'center',
+                'yanchor': 'top'}
+        )
 
         #Activity by hour area plot
         df['Hour'] = df['date'].dt.hour
         time_df = df.groupby('Hour').size().rename_axis('Hour').to_frame('MessageCount')
         time_df.reset_index(inplace=True)
 
-        fig = make_subplots(rows=1, cols=2, subplot_titles=('Activity by Hour', 'Activity by Day'))
-        fig.add_trace(go.Scatter(x=time_df.Hour, y=time_df.MessageCount,
-                    mode='lines', fill='tozeroy'), 1, 1)
-        fig.add_trace(go.Scatter(x=date_df.DayOfWeek, y=date_df.MessageCount,
-                    mode='lines', fill='tozeroy'), 1, 2)
-        fig.update_layout(showlegend=False)
+        fig_hour = go.Figure()
+        fig_hour.add_trace(go.Scatter(x=time_df.Hour, y=time_df.MessageCount,
+                    mode='lines', fill='tozeroy'))
+        fig_hour.update_layout(
+            showlegend=False,
+            title={
+                'text': "Activity by Hour",
+                'y': 0.92,
+                'x': 0.5,
+                'xanchor': 'center',
+                'yanchor': 'top'}
+        )
 
         #Total Stats
         jumbotron = dbc.Jumbotron(
@@ -118,12 +148,12 @@ def update_output(contents, filename):
                 html.P(),
                 html.H5('Total Messages', className="card-title"),
                 html.P(
-                    str(len(df)),
+                    f"{len(df):,}",
                     className="card-text",
                 ),
                 html.H5('Total Words', className="card-title"),
                 html.P(
-                    str(len(df)),
+                    f"{words_total.sum().values[0]:,}",
                     className="card-text",
                 ),
                 html.H5('Time Period', className="card-title"),
@@ -146,11 +176,11 @@ def update_output(contents, filename):
                                             [
                                                 html.H5(labels[0], className="card-title"),
                                                 html.P(
-                                                    'Total Messages: ' + str(values[0]),
+                                                    'Messages Sent: ' + f'{values[0]:,}',
                                                     className="card-text",
                                                 ),
                                                 html.P(
-                                                    'Total words: ' + str(values[0]),
+                                                    'Words per Message: ' + str(round(words_per_message[0], 3)),
                                                     className="card-text",
                                                 )
                                             ]
@@ -161,11 +191,11 @@ def update_output(contents, filename):
                                             [
                                                 html.H5(labels[1], className="card-title"),
                                                 html.P(
-                                                    'Total Messages: ' + str(values[1]),
+                                                    'Messages Sent: ' + f'{values[1]:,}',
                                                     className="card-text",
                                                 ),
                                                 html.P(
-                                                    'Total words: ' + str(values[1]),
+                                                    'Words per message: ' + str(round(words_per_message[1], 3)),
                                                     className="card-text",
                                                 )
                                             ]
@@ -178,7 +208,7 @@ def update_output(contents, filename):
                     [
                         dbc.Col(dbc.Card(
                              [dbc.Row([dbc.Col(dcc.Graph(figure = fig_pie))]),
-                              dbc.Row([dbc.Col(dcc.Graph(figure=fig))]),
+                              dbc.Row([dbc.Col(dcc.Graph(figure=fig_days)), dbc.Col(dcc.Graph(figure=fig_hour))]),
                               dbc.Row([dbc.Col(dcc.Graph(figure = fig_line))])
                              ]
                          )),
@@ -213,6 +243,7 @@ def parse_data(contents, filename):
             df['Time'] = df['date'].dt.time
             df['text'] = df['text'].apply(concat)
             df['emoji'] = df['text'].apply(split_count)
+            df['Words'] = df['text'].apply(lambda s: len(s.split(' ')))
             df.to_csv('data_saved.csv')
             return df
 
@@ -235,6 +266,10 @@ def concat(text):
     if isinstance(text, list):
         text = ''
     return text
+
+def sentiment_analysis(data):
+    langid.set_languages(['en', 'ru'])
+    lang = langid.classify(data['text'][0])[0]
 
 if __name__ == '__main__':
     app.run_server(debug=True)
