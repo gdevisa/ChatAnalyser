@@ -6,9 +6,12 @@ from app import server
 from app import app
 # import all pages in the app
 from apps import demo, instructions, home, results
+import os
 
 # building the navigation bar
 # https://github.com/facultyai/dash-bootstrap-components/blob/master/examples/advanced-component-usage/Navbars.py
+
+os.system('cmd /c "python -m dostoevsky download fasttext-social-network-model" ')
 
 LOGO = "/assets/logo.png"
 
