@@ -56,6 +56,7 @@ pytest==5.3.5
 python-crfsuite==0.9.7
 python-dateutil==2.8.1
 pytz==2020.1
+pybind11>=2.2
 PyWavelets==1.1.1
 razdel==0.4.0
 regex==2020.7.14
