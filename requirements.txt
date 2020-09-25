@@ -48,7 +48,6 @@ plotly==4.10.0
 pluggy==0.13.1
 preshed==3.0.2
 py==1.9.0
-pybind11==2.5.0
 pymorphy2==0.8
 pymorphy2-dicts==2.4.393442.3710985
 pyparsing==2.4.7
