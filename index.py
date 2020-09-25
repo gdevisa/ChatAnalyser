@@ -2,7 +2,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
-
+from app import server
 from app import app
 # import all pages in the app
 from apps import demo, instructions, home, results
