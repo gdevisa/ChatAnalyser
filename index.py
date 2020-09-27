@@ -7,11 +7,15 @@ from app import app
 # import all pages in the app
 from apps import demo, instructions, home, results
 import os
+import subprocess
 
 # building the navigation bar
 # https://github.com/facultyai/dash-bootstrap-components/blob/master/examples/advanced-component-usage/Navbars.py
 
-os.system('cmd /c "python -m dostoevsky download fasttext-social-network-model" ')
+cmd = "python -m dostoevsky download fasttext-social-network-model"
+returned_value = subprocess.call(cmd, shell=True)
+
+print(returned_value)
 
 LOGO = "/assets/logo.png"
 
