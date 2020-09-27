@@ -21,6 +21,7 @@ import plotly.graph_objs as go
 import plotly.figure_factory as ff
 
 import os
+import subprocess
 from app import app
 
 def split_count(text):
@@ -78,6 +79,11 @@ def sentiment_analysis(data):
             sentiments_2.append(tone)
 
         return sentiments_1, sentiments_2
+
+cmd = "python -m dostoevsky download fasttext-social-network-model"
+returned_value = subprocess.call(cmd, shell=True)
+
+print(returned_value)
 
 with open('result.json', encoding='utf-8') as f:
     data = json.load(f)
