@@ -83,7 +83,6 @@ def sentiment_analysis(data):
 cmd = "python -m dostoevsky download fasttext-social-network-model"
 returned_value = subprocess.call(cmd, shell=True)
 
-print(returned_value)
 
 with open('result.json', encoding='utf-8') as f:
     data = json.load(f)

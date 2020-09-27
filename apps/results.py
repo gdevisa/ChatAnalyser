@@ -224,7 +224,7 @@ def parse_data(contents, filename):
                 ['photo', 'width', 'height', 'edited', 'file', 'media_type', 'duration_seconds', 'actor', 'actor_id',
                  'forwarded_from',
                  'reply_to_message_id', 'discard_reason', 'mime_type', 'thumbnail', 'action', 'sticker_emoji', 'type',
-                 'id'], axis=1)
+                 'id'], axis=1, errors='ignore')
             df['date'] = pd.to_datetime(df['date'])
             df['Date'] = df['date'].dt.date
             df['Day'] = df['date'].dt.day
